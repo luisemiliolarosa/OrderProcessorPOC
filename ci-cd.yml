@@ -1,0 +1,71 @@
+name: CI/CD - OrderProcessorPOC
+
+on:
+  push:
+    branches: [main, dev, staging]
+  pull_request:
+    branches: [main, dev, staging]
+
+env:
+  DOTNET_VERSION: "8.0.x"
+  AZURE_FUNCTIONAPP_NAME_DEV: "orderprocessor-dev"
+  AZURE_FUNCTIONAPP_NAME_STAGING: "orderprocessor-staging"
+  AZURE_FUNCTIONAPP_NAME_PROD: "orderprocessor-prod"
+  AZURE_RESOURCE_GROUP: "rg-orderprocessor"
+  AZURE_REGION: "eastus"
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore
+        run: dotnet restore ./OrderProcessorPOC.sln
+
+      - name: Build
+        run: dotnet build ./OrderProcessorPOC.sln --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test ./tests/OrderProcessor.Tests/OrderProcessor.Tests.csproj --no-build --verbosity normal
+
+      - name: Publish
+        run: dotnet publish ./src/OrderProcessor.Functions/OrderProcessor.Functions.csproj -c Release -o ./publish_output
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: published-functions
+          path: ./publish_output
+
+  deploy:
+    needs: build-test
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        env: [dev, staging, prod]
+    environment: ${{ matrix.env }}
+
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: published-functions
+          path: ./publish_output
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Deploy to Azure Function App
+        uses: azure/functions-action@v1
+        with:
+          app-name: ${{ env["AZURE_FUNCTIONAPP_NAME_" + (matrix.env | upper)] }}
+          package: ./publish_output
