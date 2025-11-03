@@ -21,8 +21,10 @@ namespace OrderProcessor.Services
             services.AddTransient<StandardOrderStrategy>();
             services.AddTransient<PremiumOrderStrategy>();
 
-            services.AddSingleton<IProcessingStrategyFactory, ProcessingStrategyFactory>();
+            services.AddTransient<IPaymentProcessor, PaymentProcessor>();
             services.AddSingleton<IOrderProcessor, OrderProcessor>();
+
+            services.AddSingleton<IProcessingStrategyFactory, ProcessingStrategyFactory>();
             services.AddSingleton<IDateTimeService, DateTimeService>();
 
             // Feature flag provider via KeyVault (optional)

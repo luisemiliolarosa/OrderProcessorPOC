@@ -10,5 +10,6 @@ namespace OrderProcessor.Domain.Entities
         public double Amount { get; set; }
         public OrderStatus Status { get; set; } = OrderStatus.Pending;
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public Payment Payment { get; set; } = new Payment();
     }
 }

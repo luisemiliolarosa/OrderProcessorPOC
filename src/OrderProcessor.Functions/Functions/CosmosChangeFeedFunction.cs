@@ -41,7 +41,7 @@ namespace OrderProcessor.Functions.Functions
 
             foreach (var order in orders)
             {
-                await _processor.ProcessAsync(order, default);
+                await _processor.ProcessAsync(order);
             }
         }
     }

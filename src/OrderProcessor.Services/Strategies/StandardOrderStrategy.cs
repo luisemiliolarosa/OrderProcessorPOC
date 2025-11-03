@@ -7,7 +7,7 @@ namespace OrderProcessor.Services.Strategies
 {
     public class StandardOrderStrategy : IProcessingStrategy
     {
-        public Task ExecuteAsync(Order order, CancellationToken cancellationToken)
+        public Task ExecuteAsync(Order order)
         {
             order.Status = OrderStatus.Processed;
             return Task.CompletedTask;

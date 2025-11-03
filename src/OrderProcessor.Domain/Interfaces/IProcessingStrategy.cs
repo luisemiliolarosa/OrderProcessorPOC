@@ -6,6 +6,6 @@ namespace OrderProcessor.Domain.Interfaces
 {
     public interface IProcessingStrategy
     {
-        Task ExecuteAsync(Order order, CancellationToken cancellationToken);
+        Task ExecuteAsync(Order order);
     }
 }

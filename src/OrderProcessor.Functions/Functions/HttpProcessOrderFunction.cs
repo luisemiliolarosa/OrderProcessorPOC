@@ -52,7 +52,7 @@ namespace OrderProcessor.Functions.Functions
                 return null;
             }
 
-            await _orderProcessor.ProcessAsync(cosmosOrder, req.FunctionContext.CancellationToken);
+            await _orderProcessor.ProcessAsync(cosmosOrder);
 
             var msg = new OrderQueueMessage
             {

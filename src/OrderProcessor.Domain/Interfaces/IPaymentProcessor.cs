@@ -4,9 +4,8 @@ using OrderProcessor.Domain.Entities;
 
 namespace OrderProcessor.Domain.Interfaces
 {
-    public interface IOrderProcessor
+    public interface IPaymentProcessor
     {
-        bool Validate(Order order);
-        Task ProcessAsync(Order order);
+        Task<Payment> ChargeAsync(Payment payment);
     }
 }

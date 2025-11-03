@@ -1,46 +1,75 @@
+using System.Threading.Tasks;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Azure.WebJobs.Extensions.DurableTask;
 using Microsoft.Extensions.Logging;
 using OrderProcessor.Domain.Entities;
+using OrderProcessor.Domain.Interfaces;
 
 namespace OrderProcessor.Functions.Functions
 {
-    public static class OrchestratorFunctions
+    public class OrderOrchestrator
     {
-        [Function("OrderOrchestrator")]
-        public static async Task RunOrchestrator(
-            [OrchestrationTrigger] IDurableOrchestrationContext context
+        private readonly IOrderProcessor _orderProcessor;
+        private readonly IPaymentProcessor _paymentProcessor;
+        private readonly ILogger<OrderOrchestrator> _logger;
+
+        public OrderOrchestrator(
+            IOrderProcessor orderProcessor,
+            IPaymentProcessor paymentProcessor,
+            ILogger<OrderOrchestrator> logger
         )
         {
+            _orderProcessor = orderProcessor;
+            _paymentProcessor = paymentProcessor;
+            _logger = logger;
+        }
+
+        [Function("OrderOrchestrator")]
+        public async Task Run([OrchestrationTrigger] IDurableOrchestrationContext context)
+        {
             var order = context.GetInput<Order>();
-            await context.CallActivityAsync("ValidateOrder", order);
-            await context.CallActivityAsync("ChargePayment", order);
-            await context.CallActivityAsync("FulfillOrder", order);
+            if (!_orderProcessor.Validate(order))
+            {
+                _logger.LogWarning("Order {OrderId} is invalid. Aborting orchestration.", order.Id);
+                return;
+            }
+
+            // Step 1: Charge Payment
+            order.Payment = await context.CallActivityAsync<Payment>(
+                "ChargePaymentActivity",
+                order.Payment
+            );
+
+            if (!order.Payment.IsCharged)
+            {
+                _logger.LogWarning(
+                    "Payment failed for order {OrderId}. Aborting orchestration.",
+                    order.Id
+                );
+                return;
+            }
+
+            // Step 2: Execute Order
+            await context.CallActivityAsync("ExecuteOrderActivity", order);
+
+            _logger.LogInformation(
+                "Order {OrderId} processed successfully with Payment {PaymentId}",
+                order.Id,
+                order.Payment.PaymentId
+            );
         }
 
-        [Function("ValidateOrder")]
-        public static Task ValidateOrder([ActivityTrigger] Order order, FunctionContext ctx)
+        [Function("ChargePaymentActivity")]
+        public async Task<Payment> ChargePaymentActivity([ActivityTrigger] Payment payment)
         {
-            var log = ctx.GetLogger("ValidateOrder");
-            log.LogInformation("Validating order {Id}", order.Id);
-            return Task.CompletedTask;
+            return await _paymentProcessor.ChargeAsync(payment);
         }
 
-        [Function("ChargePayment")]
-        public static Task ChargePayment([ActivityTrigger] Order order, FunctionContext ctx)
+        [Function("ExecuteOrderActivity")]
+        public async Task ExecuteOrderActivity([ActivityTrigger] Order order)
         {
-            var log = ctx.GetLogger("ChargePayment");
-            log.LogInformation("Charging payment for order {Id}", order.Id);
-            return Task.CompletedTask;
-        }
-
-        [Function("FulfillOrder")]
-        public static Task FulfillOrder([ActivityTrigger] Order order, FunctionContext ctx)
-        {
-            var log = ctx.GetLogger("FulfillOrder");
-            log.LogInformation("Fulfilling order {Id}", order.Id);
-            return Task.CompletedTask;
+            await _orderProcessor.ProcessAsync(order);
         }
 
         [Function("StartOrderOrchestration")]
