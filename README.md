@@ -10,7 +10,7 @@ It includes:
 - Exception middleware and correlation middleware
 - Application Insights wiring, Key Vault feature flags, Polly policies for resilience
 - DateTimeService injected via DI
-- Strategy/Factory/Iterator patterns in Services layer
+- Strategy/Factory patterns in Services layer
 - Unit tests (xUnit)
 
 ## Configuration (local.settings.json)
